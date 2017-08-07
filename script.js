@@ -2,90 +2,140 @@
 
 window.onload = function() {
 
-  // Intialize canvas
-  let cell_num = 15; // Grid size
-  let cell_size = Math.floor((Math.min(window.innerHeight,window.innerWidth))/cell_num);
-  let canvas_size = cell_size*cell_num;
-  let canvas_mid = Math.floor(cell_num/2);
-  let canvas = document.createElement('canvas');
-  canvas.height = canvas_size;
-  canvas.width = canvas_size;
-  document.body.appendChild(canvas);
-  let context = canvas.getContext("2d");
-  context.fillStyle = "#000";
+  class Easel {
+    constructor(cell_num) {
+      // Build and hold a canvas
+      let canvas_size = Math.min(window.innerHeight,window.innerWidth);
+      this.cell_size = canvas_size/cell_num;
 
-  // Snake game class
+      this.canvas = document.createElement('canvas');
+      this.canvas.height = canvas_size;
+      this.canvas.width = canvas_size;
+      document.body.appendChild(this.canvas);
+      this.context = this.canvas.getContext("2d");
+      this.context.fillStyle = "#000";
+    }
+    draw({snake,food}) {
+      this.draw_clear();
+      this.draw_snake(snake);
+      this.draw_food(food);
+    }
+    draw_clear() {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    draw_food({x,y}) {
+      let c = this.cell_size;
+      this.context.strokeRect(x*c, y*c, c, c);
+    }
+    draw_snake({x,y,tail}) {
+      this.context.fillRect(
+        x*this.cell_size,
+        y*this.cell_size,
+        this.cell_size,
+        this.cell_size);
+    }
+  }
+
   class Snake {
-    constructor() {
-      this.x = canvas_mid;
-      this.y = canvas_mid;
+    constructor(cell_num) {
+      this.x = Math.floor(cell_num/2);
+      this.y = Math.floor(cell_num/2);
       this.dir = 'down';
-      context.fillRect(this.x*cell_size,this.y*cell_size,cell_size,cell_size);
+      this.tail = [];
+      this.length = 1;
     }
-    start() {
+  }
+
+  class Game {
+    constructor() {
+      // Game settings
+      this.cell_num = 11;   // Grid size
+      this.steptime = 700;  // Game speed
+
+      // Init
+      this.easel = new Easel(this.cell_num);
+      this.snake = new Snake(this.cell_num);
+
+      // Add EventListeners
+      document.addEventListener('keydown', this.keyHandler.bind(this), false)
+      document.getElementsByTagName('canvas')[0].addEventListener('touchstart', this.touchHandler.bind(this), true);
+
+      // Draw snakehead and food starting position
+      this.set_food();
+      this.easel.draw({food: this.food, snake: this.snake});
+    }
+    start_game() {
       console.log('Starting game');
-      this.interval = setInterval(this.step,1000);
+      this.timer = setInterval(this.step.bind(this),this.steptime);
     }
-    move() {
-      switch (this.dir) {
-        case 'up':    this.y-=1; break;
-        case 'down':  this.y+=1; break;
-        case 'left':  this.x-=1; break;
-        case 'right': this.x+=1; break;
+    step() { // Called on an interval timer
+      switch (this.snake.dir) {
+        case 'up':    this.snake.y-=1; break;
+        case 'down':  this.snake.y+=1; break;
+        case 'left':  this.snake.x-=1; break;
+        case 'right': this.snake.x+=1; break;
       }
-      if (this.x < 0 || this.x > 14 || this.y < 0 || this.y > 14) {
+      if (this.bad_collision()) {
         this.game_over();
+      } else {
+        if (this.food_collision()) {
+          this.set_food();
+          this.snake.length += 1;
+          console.log(this.snake);
+        }
+        this.easel.draw({food: this.food, snake: this.snake});
       }
     }
-    step() {
-      snake.move();
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.fillRect(snake.x*cell_size,snake.y*cell_size,cell_size,cell_size);
+    bad_collision() {
+      return (this.snake.x < 0 || this.snake.x >= this.cell_num ||
+          this.snake.y < 0 || this.snake.y >= this.cell_num)
+    }
+    food_collision() {
+      return (this.snake.x === this.food.x && this.snake.y === this.food.y)
+    }
+    set_food() {
+      this.food = {
+        x: Math.floor(this.cell_num*Math.random()),
+        y: Math.floor(this.cell_num*Math.random()),
+      }
     }
     game_over() {
       console.log('Game over');
-      clearTimeout(this.interval);
+      clearTimeout(this.timer);
+    }
+    keyHandler(e) {
+      if(this.timer===undefined){
+        this.start_game();
+      };
+      switch (e.code) {
+        case 'ArrowUp':    this.snake.dir = 'up';    break;
+        case 'ArrowRight': this.snake.dir = 'right'; break;
+        case 'ArrowDown':  this.snake.dir = 'down';  break;
+        case 'ArrowLeft':  this.snake.dir = 'left';  break;
+        default:
+      }
+    }
+    touchHandler(e) {
+      if(this.timer===undefined) {
+        this.start_game();
+      };
+      if (e.pageX > e.pageY) { // down/right
+        if (this.easel.canvas.height-e.pageX > e.pageY ) {
+          this.snake.dir = 'up';
+        } else {
+          this.snake.dir = 'right';
+        }
+      } else { // up/left
+        if (this.easel.canvas.height-e.pageX < e.pageY ) {
+          this.snake.dir = 'down';
+        } else {
+          this.snake.dir = 'left';
+        }
+      }
     }
   }
 
   // Initialize
-  snake = new Snake;
-  // snake.initialize();
-
-  // Keyboard event listener
-  document.addEventListener('keydown', keyHandler, false)
-  function keyHandler (event) {
-    if(snake.interval===undefined){
-      snake.start();
-    };
-    switch (event.code) {
-      case 'ArrowUp':    snake.dir = 'up';    break;
-      case 'ArrowRight': snake.dir = 'right'; break;
-      case 'ArrowDown':  snake.dir = 'down';  break;
-      case 'ArrowLeft':  snake.dir = 'left';  break;
-      default:
-      // No action on other keys
-    }
-  }
-  // Touch event listener
-  document.getElementsByTagName('canvas')[0].addEventListener('touchstart', touchHandler, true);
-  function touchHandler(e) {
-    if(snake.interval===undefined) {
-      snake.start();
-    };
-    if (e.pageX > e.pageY) { // down/right
-      if (canvas.height-e.pageX > e.pageY ) {
-        snake.dir = 'up';
-      } else {
-        snake.dir = 'right';
-      }
-    } else { // up/left
-      if (canvas.height-e.pageX < e.pageY ) {
-        snake.dir = 'down';
-      } else {
-        snake.dir = 'left';
-      }
-    }
-  }
+  new Game;
 
 };
