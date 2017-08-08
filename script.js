@@ -27,12 +27,14 @@ window.onload = function() {
       let c = this.cell_size;
       this.context.strokeRect(x*c, y*c, c, c);
     }
-    draw_snake({x,y,tail}) {
-      this.context.fillRect(
-        x*this.cell_size,
-        y*this.cell_size,
-        this.cell_size,
-        this.cell_size);
+    draw_snake({tail}) {
+      tail.forEach( (pos) => {
+        this.context.fillRect(
+          pos.x*this.cell_size,
+          pos.y*this.cell_size,
+          this.cell_size,
+          this.cell_size);
+      } )
     }
   }
 
@@ -41,8 +43,15 @@ window.onload = function() {
       this.x = Math.floor(cell_num/2);
       this.y = Math.floor(cell_num/2);
       this.dir = 'down';
-      this.tail = [];
+      this.tail = [{ x: this.x, y: this.y}];
       this.length = 1;
+    }
+    get head() {
+      return this.tail[this.tail.length - 1]
+    }
+    set head(pos) {
+      this.tail.push(pos);
+      this.tail = this.tail.slice(-(this.length));
     }
   }
 
@@ -69,11 +78,12 @@ window.onload = function() {
       this.timer = setInterval(this.step.bind(this),this.steptime);
     }
     step() { // Called on an interval timer
+      let {x,y} = this.snake.head;
       switch (this.snake.dir) {
-        case 'up':    this.snake.y-=1; break;
-        case 'down':  this.snake.y+=1; break;
-        case 'left':  this.snake.x-=1; break;
-        case 'right': this.snake.x+=1; break;
+        case 'up':    this.snake.head = {x, y: y-=1}; break;
+        case 'down':  this.snake.head = {x, y: y+=1}; break;
+        case 'left':  this.snake.head = {x: x-=1, y}; break;
+        case 'right': this.snake.head = {x: x+=1, y}; break;
       }
       if (this.bad_collision()) {
         this.game_over();
@@ -81,17 +91,17 @@ window.onload = function() {
         if (this.food_collision()) {
           this.set_food();
           this.snake.length += 1;
-          console.log(this.snake);
         }
         this.easel.draw({food: this.food, snake: this.snake});
       }
     }
     bad_collision() {
-      return (this.snake.x < 0 || this.snake.x >= this.cell_num ||
-          this.snake.y < 0 || this.snake.y >= this.cell_num)
+      let border_collision = (this.snake.head.x < 0 || this.snake.head.x >= this.cell_num ||
+          this.snake.head.y < 0 || this.snake.head.y >= this.cell_num)
+      return border_collision;
     }
     food_collision() {
-      return (this.snake.x === this.food.x && this.snake.y === this.food.y)
+      return (this.snake.head.x === this.food.x && this.snake.head.y === this.food.y)
     }
     set_food() {
       this.food = {
