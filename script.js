@@ -97,8 +97,13 @@ window.onload = function() {
     }
     bad_collision() {
       let border_collision = (this.snake.head.x < 0 || this.snake.head.x >= this.cell_num ||
-          this.snake.head.y < 0 || this.snake.head.y >= this.cell_num)
-      return border_collision;
+          this.snake.head.y < 0 || this.snake.head.y >= this.cell_num);
+      let tail_collision = function(tail) {
+        tail = tail.slice();
+        let head = tail.pop();
+        return tail.some( (el) => { return (el.x === head.x && el.y === head.y); } );
+      }(this.snake.tail)
+      return border_collision || tail_collision;
     }
     food_collision() {
       return (this.snake.head.x === this.food.x && this.snake.head.y === this.food.y)
@@ -149,3 +154,11 @@ window.onload = function() {
   new Game;
 
 };
+
+
+// TODO:
+// 1) use position class for easier comparison and collision detection
+// 2) avoid placing food on the tail
+// 3) improve touch interface
+// 4) show game-over and reset
+// 5) forbid backwards movement
